@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Australian CGT Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    h1 { text-align: center; font-size: 1.75rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.875rem; margin-bottom: 1.25rem; }
+
+    .card {
+      background: #1e2330; border: 1px solid #2d3748;
+      border-radius: 12px; padding: 1.5rem;
+      max-width: 700px; margin: 0 auto 1.5rem;
+    }
+    .card h2 {
+      font-size: 1rem; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 0.8125rem; color: #94a3b8; font-weight: 500; }
+
+    .input-wrap { position: relative; display: flex; align-items: center; }
+    .input-wrap .prefix, .input-wrap .suffix {
+      position: absolute; color: #64748b; font-size: 0.9rem; pointer-events: none;
+    }
+    .input-wrap .prefix { left: 0.75rem; }
+    .input-wrap .suffix { right: 0.75rem; }
+
+    input[type="number"], input[type="text"] {
+      width: 100%; background: #0f1117; border: 1px solid #2d3748;
+      border-radius: 8px; padding: 0.6rem 0.75rem;
+      color: #f1f5f9; font-size: 0.95rem; outline: none;
+      transition: border-color 0.15s; -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input:focus { border-color: #4f8ef7; }
+    .has-prefix input { padding-left: 2rem; }
+    .has-suffix input { padding-right: 2.5rem; }
+
+    .toggle-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0 0.25rem; }
+    .toggle-label { font-size: 0.8125rem; color: #94a3b8; }
+    .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #2d3748; border-radius: 22px; transition: background 0.2s; }
+    .slider::before {
+      content: ''; position: absolute; width: 16px; height: 16px;
+      left: 3px; bottom: 3px; background: #94a3b8; border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .slider { background: #3b82f6; }
+    .toggle input:checked + .slider::before { transform: translateX(18px); background: #fff; }
+
+    .calc-btn {
+      display: block; width: 100%; max-width: 700px; margin: 0 auto 1.5rem;
+      padding: 0.85rem; background: #3b82f6; color: #fff;
+      font-size: 1rem; font-weight: 600; border: none; border-radius: 10px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .calc-btn:hover { background: #2563eb; }
+
+    #results { display: none; }
+
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 520px) { .results-grid { grid-template-columns: 1fr; } }
+
+    .result-box { background: #0f1117; border: 1px solid #2d3748; border-radius: 10px; padding: 1.1rem 1rem; }
+    .result-box.highlight { border-color: #3b82f6; }
+    .result-box .box-title { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.35rem; }
+    .result-box .big-num { font-size: 1.5rem; font-weight: 700; color: #f1f5f9; }
+    .result-box .sub-num { font-size: 0.8125rem; color: #64748b; margin-top: 0.2rem; }
+
+    .method-card {
+      background: #0f1117; border: 1px solid #2d3748;
+      border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .method-card.proposed { border-color: #78350f; background: #0f0d08; }
+    .method-card h3 { font-size: 0.9375rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+    .badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 20px; font-weight: 600; letter-spacing: 0.04em; }
+    .badge-blue   { background: #1e3a5f; color: #60a5fa; }
+    .badge-green  { background: #14342b; color: #34d399; }
+    .badge-amber  { background: #3d1f00; color: #fbbf24; border: 1px solid #854d0e; }
+    .badge-best   { background: #1c3a1c; color: #4ade80; border: 1px solid #166534; }
+    .badge-proposed { background: #78350f; color: #fde68a; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; letter-spacing: 0.05em; }
+
+    .breakdown-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 0.35rem 0; border-bottom: 1px solid #1a2033; font-size: 0.875rem;
+    }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-row .row-label { color: #94a3b8; }
+    .breakdown-row .row-val { color: #f1f5f9; font-variant-numeric: tabular-nums; }
+    .breakdown-row .row-val.negative { color: #f87171; }
+    .breakdown-row .row-val.positive { color: #4ade80; }
+    .breakdown-row.total-row .row-label,
+    .breakdown-row.total-row .row-val { font-weight: 700; color: #f1f5f9; font-size: 0.9375rem; }
+    .breakdown-row.section-head .row-label { color: #60a5fa; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .method-card.proposed .breakdown-row.section-head .row-label { color: #fbbf24; }
+
+    /* Step-by-step accordion */
+    .steps-toggle {
+      width: 100%; background: none; border: 1px solid #2d3748; border-radius: 8px;
+      color: #94a3b8; font-size: 0.8125rem; padding: 0.55rem 0.9rem;
+      cursor: pointer; text-align: left; margin-top: 0.75rem;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .steps-toggle:hover { border-color: #4f8ef7; color: #c7d2e0; }
+    .steps-body { display: none; margin-top: 0.75rem; background: #0a0d14; border: 1px solid #1e2738; border-radius: 8px; padding: 1rem; }
+    .steps-body.open { display: block; }
+
+    .step { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #1a2033; }
+    .step:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .step-num {
+      display: inline-block; width: 20px; height: 20px;
+      background: #1e3a5f; color: #60a5fa; border-radius: 50%;
+      font-size: 0.7rem; font-weight: 700; text-align: center;
+      line-height: 20px; margin-right: 0.5rem; flex-shrink: 0;
+    }
+    .step-num.amber { background: #3d1f00; color: #fbbf24; }
+    .step-title { font-size: 0.8125rem; font-weight: 600; color: #c7d2e0; display: flex; align-items: center; margin-bottom: 0.5rem; }
+    .step-formula {
+      font-family: 'Courier New', monospace; font-size: 0.8rem;
+      background: #111827; border-left: 3px solid #3b82f6;
+      padding: 0.4rem 0.75rem; border-radius: 0 6px 6px 0;
+      color: #a5b4fc; margin-bottom: 0.35rem; white-space: pre-wrap;
+    }
+    .step-formula.amber { border-left-color: #f59e0b; color: #fde68a; background: #100c00; }
+    .step-note { font-size: 0.775rem; color: #475569; margin-top: 0.3rem; padding-left: 0.25rem; line-height: 1.5; }
+
+    /* Tax bracket table */
+    .bracket-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.5rem; }
+    .bracket-table th { text-align: left; color: #64748b; font-weight: 600; padding: 0.25rem 0.5rem; border-bottom: 1px solid #1e2738; }
+    .bracket-table td { padding: 0.25rem 0.5rem; color: #94a3b8; }
+    .bracket-table tr.active td { color: #f1f5f9; background: #1a2744; }
+    .bracket-table tr.active td:first-child { border-left: 3px solid #3b82f6; }
+    .bracket-table td.amount { color: #f87171; font-variant-numeric: tabular-nums; }
+    .bracket-table tr.active td.amount { color: #fca5a5; }
+
+    .comparison-bar { margin-top: 1rem; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 0.8125rem; color: #94a3b8; margin-bottom: 0.4rem; }
+    .bar-track { background: #1e2330; border-radius: 6px; height: 10px; overflow: hidden; margin-bottom: 0.75rem; }
+    .bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
+    .bar-fill.blue  { background: #3b82f6; }
+    .bar-fill.green { background: #22c55e; }
+    .bar-fill.amber { background: #f59e0b; }
+
+    .note { font-size: 0.78rem; color: #475569; margin-top: 0.5rem; line-height: 1.5; }
+
+    .error-msg {
+      background: #3b1f1f; border: 1px solid #7f1d1d; color: #fca5a5;
+      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem;
+      max-width: 700px; margin: 0 auto 1rem; display: none;
+    }
+
+    .inflation-note {
+      background: #1a2230; border: 1px solid #2a3a50;
+      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem;
+      color: #7aa5cc; margin-top: 0.75rem; line-height: 1.6;
+    }
+    .inflation-note strong { color: #93c5fd; }
+
+  </style>
+</head>
+<body>
+
+  <h1>Australian CGT Calculator</h1>
+  <p class="subtitle">50% Discount (current law) vs Inflation Discount with 30% Minimum (post-2027) &mdash; FY2024&ndash;25 rates</p>
+
+
+  <div class="card">
+    <h2>Asset Details</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="purchasePrice">Purchase Price</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">$</span>
+          <input type="text" id="purchasePrice" placeholder="100,000" data-type="currency" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field">
+        <label for="yearsHeld">Years Held</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="yearsHeld" placeholder="5" min="0" step="0.5">
+          <span class="suffix">yrs</span>
+        </div>
+      </div>
+      <div class="field full">
+        <div class="toggle-row">
+          <span class="toggle-label">Enter sale price directly</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggleMode" checked>
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label">Use annual growth %</span>
+        </div>
+      </div>
+      <div class="field" id="salePriceField" style="display:none">
+        <label for="salePrice">Sale Price</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">$</span>
+          <input type="text" id="salePrice" placeholder="180,000" data-type="currency" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field" id="growthRateField">
+        <label for="growthRate">Avg Annual Growth</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="growthRate" placeholder="7" step="0.1">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="saleCosts">Sale Costs (agent, legal, etc.)</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">$</span>
+          <input type="text" id="saleCosts" placeholder="5,000" data-type="currency" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Tax Context</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="salary">Annual Salary (before tax)</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">$</span>
+          <input type="text" id="salary" placeholder="90,000" data-type="currency" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field">
+        <label for="inflation">Avg Annual Inflation (CPI)</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="inflation" placeholder="2.5" step="0.1">
+          <span class="suffix">%</span>
+        </div>
+      </div>
+    </div>
+    <div class="inflation-note">
+      <strong>How inflation is used:</strong> The <strong>50% Discount</strong> method does not adjust for inflation — it taxes half the nominal gain.
+      The <strong>Inflation Discount with 30% Minimum</strong> method CPI-indexes the cost base
+      (<code>cost &times; (1+CPI%)^years</code>), so only the gain above inflation is taxed, with a 30% floor on that real gain.
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+  <button class="calc-btn" onclick="calculate()">Calculate CGT</button>
+
+  <div id="results">
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="results-grid" id="summaryGrid"></div>
+    </div>
+    <div class="card">
+      <h2>Method Comparison</h2>
+      <div id="methodCards"></div>
+      <div class="comparison-bar" id="comparisonBar"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Currency input formatting ----
+    function parseCurrency(el) {
+      return parseFloat(el.value.replace(/,/g, '')) || 0;
+    }
+    function formatCurrency(el) {
+      const n = parseFloat(el.value.replace(/,/g, ''));
+      if (!isNaN(n) && el.value.trim() !== '') {
+        el.value = n.toLocaleString('en-AU', { maximumFractionDigits: 0 });
+      }
+    }
+    function unformatCurrency(el) {
+      const n = parseFloat(el.value.replace(/,/g, ''));
+      if (!isNaN(n)) el.value = String(n);
+    }
+    document.querySelectorAll('input[data-type="currency"]').forEach(el => {
+      el.addEventListener('blur',  () => formatCurrency(el));
+      el.addEventListener('focus', () => unformatCurrency(el));
+    });
+
+    document.getElementById('toggleMode').addEventListener('change', function () {
+      const useGrowth = this.checked;
+      document.getElementById('salePriceField').style.display  = useGrowth ? 'none' : '';
+      document.getElementById('growthRateField').style.display = useGrowth ? '' : 'none';
+    });
+
+    // ---- FY2024-25 tax brackets ----
+    const TAX_BRACKETS = [
+      { floor: 0,      ceil: 18200,    rate: 0.00  },
+      { floor: 18200,  ceil: 45000,    rate: 0.19  },
+      { floor: 45000,  ceil: 120000,   rate: 0.325 },
+      { floor: 120000, ceil: 180000,   rate: 0.37  },
+      { floor: 180000, ceil: Infinity, rate: 0.45  },
+    ];
+
+    // LITO FY2024-25: $700 flat to $37,500; tapers at $1.50/$1 → zero at $37,967
+    function lito(income) {
+      if (income <= 37500) return 700;
+      if (income <= 37967) return Math.max(0, 700 - (income - 37500) * 1.5);
+      return 0;
+    }
+
+    // Medicare levy FY2024-25: shade-in zone $26,000–$32,500 (10c per $1 above $26k), then 2% flat
+    function medicareLevy(income) {
+      if (income <= 26000) return 0;
+      if (income < 32500)  return Math.min((income - 26000) * 0.10, income * 0.02);
+      return income * 0.02;
+    }
+
+    function incomeTaxDetailed(income) {
+      if (income <= 0) return { bracketBreakdown: [], baseTax: 0, litoAmount: 0, medicare: 0, total: 0 };
+      let baseTax = 0;
+      const bracketBreakdown = [];
+      for (const b of TAX_BRACKETS) {
+        if (income > b.floor) {
+          const taxable = Math.min(income, b.ceil) - b.floor;
+          const tax = taxable * b.rate;
+          baseTax += tax;
+          bracketBreakdown.push({ ...b, taxable, tax, active: true });
+        } else {
+          bracketBreakdown.push({ ...b, taxable: 0, tax: 0, active: false });
+        }
+      }
+      const litoAmount = lito(income);
+      const medicare   = medicareLevy(income);
+      const total      = Math.max(0, baseTax - litoAmount) + medicare;
+      return { bracketBreakdown, baseTax, litoAmount, medicare, total };
+    }
+
+    function incomeTax(income) { return incomeTaxDetailed(income).total; }
+
+    // ---- Proposed 30% minimum CGT (post-2027 budget proposal) ----
+    // Mechanics per bill analysis (Corrs, Pitcher Partners, PwC):
+    //   1. Cost base is CPI-indexed (same as indexation method) — inflation gains are NOT taxed.
+    //   2. The real (indexed) gain is added to income at normal marginal rates.
+    //   3. A minimum-tax top-up is applied if marginal tax on the real gain < 30% of real gain.
+    //   4. CGT tax = max(marginal tax on real gain, 30% × real gain)
+    // The 30% floor therefore applies to the REAL gain, not the nominal gain.
+    function calcProposed30(salary, realGain) {
+      const totalIncome    = salary + realGain;
+      const taxOnSalary    = incomeTax(salary);
+      const taxOnTotal     = incomeTax(totalIncome);
+      const marginalCgtTax = taxOnTotal - taxOnSalary;   // marginal brackets on real gain
+      const minCgtTax      = realGain * 0.30;            // 30% floor on the REAL gain
+      const cgtTax         = Math.max(marginalCgtTax, minCgtTax);
+      const floorApplied   = minCgtTax > marginalCgtTax;
+      return { cgtTax, marginalCgtTax, minCgtTax, floorApplied, taxOnSalary, taxOnTotal };
+    }
+
+    // ---- Formatting ----
+    function fmt(n) {
+      const abs = Math.abs(n);
+      const s = '$' + abs.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      return n < 0 ? '-' + s : s;
+    }
+    function fmtPct(n)  { return n.toFixed(2) + '%'; }
+    function fmtRate(r) { return (r * 100).toFixed(1) + '%'; }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').textContent = msg;
+      document.getElementById('errorMsg').style.display = 'block';
+      document.getElementById('results').style.display = 'none';
+    }
+    function hideError() { document.getElementById('errorMsg').style.display = 'none'; }
+
+    function toggleSteps(btn) {
+      const body = btn.nextElementSibling;
+      const open = body.classList.toggle('open');
+      btn.querySelector('.arrow').textContent = open ? '▲' : '▼';
+    }
+
+    // ---- Tax bracket table ----
+    function bracketTableHTML(breakdown) {
+      const rows = breakdown.map(b => {
+        const range = b.ceil === Infinity
+          ? `Over $${b.floor.toLocaleString('en-AU')}`
+          : `$${b.floor.toLocaleString('en-AU')} – $${b.ceil.toLocaleString('en-AU')}`;
+        return `<tr class="${b.active ? 'active' : ''}">
+          <td>${range}</td><td>${fmtRate(b.rate)}</td>
+          <td>${b.active ? fmt(b.taxable) : '—'}</td>
+          <td class="amount">${b.active && b.tax > 0 ? fmt(b.tax) : (b.active ? '$0' : '—')}</td>
+        </tr>`;
+      }).join('');
+      return `<table class="bracket-table">
+        <thead><tr><th>Bracket</th><th>Rate</th><th>Taxable in bracket</th><th>Tax</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    // ---- Step-by-step: 50% Discount ----
+    function steps50HTML(inputs) {
+      const { purchasePrice, salePrice, saleCosts, salary, heldOver12 } = inputs;
+      const netProceeds    = salePrice - saleCosts;
+      const nominalGain    = netProceeds - purchasePrice;
+      const discountedGain = heldOver12 ? nominalGain * 0.5 : nominalGain;
+      const totalIncome    = salary + discountedGain;
+      const salaryTax      = incomeTaxDetailed(salary);
+      const totalTax       = incomeTaxDetailed(totalIncome);
+      const cgtTax         = totalTax.total - salaryTax.total;
+      const effectivePct   = (cgtTax / nominalGain) * 100;
+
+      return `
+        <div class="step"><div class="step-title"><span class="step-num">1</span>Net proceeds</div>
+          <div class="step-formula">Net proceeds = Sale price − Sale costs
+= ${fmt(salePrice)} − ${fmt(saleCosts)} = ${fmt(netProceeds)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">2</span>Nominal capital gain</div>
+          <div class="step-formula">Nominal gain = Net proceeds − Cost base
+= ${fmt(netProceeds)} − ${fmt(purchasePrice)} = ${fmt(nominalGain)}</div>
+          <div class="step-note">Cost base = what you paid. No inflation adjustment in this method.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">3</span>Apply 50% discount ${!heldOver12 ? '<em>(NOT ELIGIBLE — held &lt;12 months)</em>' : ''}</div>
+          ${heldOver12
+            ? `<div class="step-formula">Discounted gain = ${fmt(nominalGain)} × 50% = ${fmt(discountedGain)}</div>
+               <div class="step-note">ITAA 1997 s.115-25 — asset held ≥ 12 months.</div>`
+            : `<div class="step-formula">No discount. Taxable gain = ${fmt(nominalGain)} (full amount)</div>`}</div>
+        <div class="step"><div class="step-title"><span class="step-num">4</span>Total assessable income</div>
+          <div class="step-formula">= Salary + Discounted gain = ${fmt(salary)} + ${fmt(discountedGain)} = ${fmt(totalIncome)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">5</span>Tax on salary alone</div>
+          ${bracketTableHTML(salaryTax.bracketBreakdown)}
+          <div class="step-formula" style="margin-top:0.5rem">Base tax = ${fmt(salaryTax.baseTax)}
+LITO       = −${fmt(salaryTax.litoAmount)}
+Medicare   = +${fmt(salaryTax.medicare)}
+─────────────────────
+Total      = ${fmt(salaryTax.total)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">6</span>Tax on total income (salary + discounted gain)</div>
+          ${bracketTableHTML(totalTax.bracketBreakdown)}
+          <div class="step-formula" style="margin-top:0.5rem">Base tax = ${fmt(totalTax.baseTax)}
+LITO       = −${fmt(totalTax.litoAmount)}
+Medicare   = +${fmt(totalTax.medicare)}
+─────────────────────
+Total      = ${fmt(totalTax.total)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">7</span>CGT tax (marginal)</div>
+          <div class="step-formula">CGT tax = ${fmt(totalTax.total)} − ${fmt(salaryTax.total)} = ${fmt(cgtTax)}</div>
+          <div class="step-note">Additional tax attributable to the capital gain.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num">8</span>Effective tax on profit</div>
+          <div class="step-formula">= CGT tax ÷ Nominal gain = ${fmt(cgtTax)} ÷ ${fmt(nominalGain)} = ${fmtPct(effectivePct)}</div>
+          <div class="step-note">Percentage of your actual profit that goes to tax.</div></div>`;
+    }
+
+    // ---- Step-by-step: Proposed 30% minimum ----
+    function stepsProposedHTML(inputs) {
+      const { purchasePrice, salePrice, saleCosts, salary, yearsHeld, inflation, heldOver12 } = inputs;
+      const netProceeds     = salePrice - saleCosts;
+      const nominalGain     = netProceeds - purchasePrice;
+      const cpiMult         = Math.pow(1 + inflation / 100, yearsHeld);
+      const indexedCostBase = heldOver12 ? purchasePrice * cpiMult : purchasePrice;
+      const realGain        = Math.max(0, netProceeds - indexedCostBase);
+      const inflComponent   = indexedCostBase - purchasePrice;
+      const { cgtTax, marginalCgtTax, minCgtTax, floorApplied } = calcProposed30(salary, realGain);
+      const totalIncome     = salary + realGain;
+      const salaryTax       = incomeTaxDetailed(salary);
+      const totalTax        = incomeTaxDetailed(totalIncome);
+      // effective rate expressed as % of nominal gain (same denominator as other methods for comparability)
+      const effectivePct    = (cgtTax / nominalGain) * 100;
+
+      return `
+        <div class="step"><div class="step-title"><span class="step-num amber">1</span>Net proceeds</div>
+          <div class="step-formula amber">= ${fmt(salePrice)} − ${fmt(saleCosts)} = ${fmt(netProceeds)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">2</span>Nominal capital gain</div>
+          <div class="step-formula amber">= Net proceeds − Cost base
+= ${fmt(netProceeds)} − ${fmt(purchasePrice)} = ${fmt(nominalGain)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">3</span>CPI multiplier (inflation adjustment)</div>
+          <div class="step-formula amber">= (1 + ${inflation}%)^${yearsHeld}
+= (${(1 + inflation/100).toFixed(5)})^${yearsHeld}
+= ${cpiMult.toFixed(6)}</div>
+          <div class="step-note">The proposed rules index the cost base by CPI so inflation gains are not taxed — only real gains above inflation are assessable. Your ${inflation}% p.a. input is used as a proxy for actual CPI index factors.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">4</span>Indexed cost base</div>
+          <div class="step-formula amber">= Purchase price × CPI multiplier
+= ${fmt(purchasePrice)} × ${cpiMult.toFixed(6)} = ${fmt(indexedCostBase)}</div>
+          <div class="step-note">Inflation component = ${fmt(inflComponent)} — this portion is excluded from tax entirely.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">5</span>Real (inflation-adjusted) gain — the taxable base</div>
+          <div class="step-formula amber">= Net proceeds − Indexed cost base
+= ${fmt(netProceeds)} − ${fmt(indexedCostBase)} = ${fmt(realGain)}</div>
+          <div class="step-note">The 30% floor applies to this real gain, not the nominal gain of ${fmt(nominalGain)}.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">6</span>Total assessable income</div>
+          <div class="step-formula amber">= Salary + Real gain
+= ${fmt(salary)} + ${fmt(realGain)} = ${fmt(totalIncome)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">7</span>Tax on salary alone</div>
+          ${bracketTableHTML(salaryTax.bracketBreakdown)}
+          <div class="step-formula amber" style="margin-top:0.5rem">Base tax = ${fmt(salaryTax.baseTax)}
+LITO       = −${fmt(salaryTax.litoAmount)}
+Medicare   = +${fmt(salaryTax.medicare)}
+─────────────────────
+Total      = ${fmt(salaryTax.total)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">8</span>Tax on total income (salary + real gain)</div>
+          ${bracketTableHTML(totalTax.bracketBreakdown)}
+          <div class="step-formula amber" style="margin-top:0.5rem">Base tax = ${fmt(totalTax.baseTax)}
+LITO       = −${fmt(totalTax.litoAmount)}
+Medicare   = +${fmt(totalTax.medicare)}
+─────────────────────
+Total      = ${fmt(totalTax.total)}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">9</span>Marginal CGT tax (before 30% floor)</div>
+          <div class="step-formula amber">= Tax on total − Tax on salary
+= ${fmt(totalTax.total)} − ${fmt(salaryTax.total)} = ${fmt(marginalCgtTax)}</div>
+          <div class="step-note">This is what progressive brackets alone produce on the real gain.</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">10</span>Apply 30% minimum floor</div>
+          <div class="step-formula amber">Minimum CGT = Real gain × 30%
+= ${fmt(realGain)} × 0.30 = ${fmt(minCgtTax)}
+
+Marginal tax on gain  = ${fmt(marginalCgtTax)}
+Minimum tax (30% floor) = ${fmt(minCgtTax)}
+CGT tax = max(${fmt(marginalCgtTax)}, ${fmt(minCgtTax)}) = ${fmt(cgtTax)}</div>
+          <div class="step-note">${floorApplied
+            ? `The 30% floor bites — your marginal rate on the real gain (${fmtPct(marginalCgtTax/realGain*100)}) is below 30%, so a top-up of ${fmt(cgtTax - marginalCgtTax)} is added.`
+            : `The 30% floor does NOT bite — your marginal rate on the real gain (${fmtPct(marginalCgtTax/realGain*100)}) already exceeds 30%, so you simply pay the marginal amount.`}</div></div>
+        <div class="step"><div class="step-title"><span class="step-num amber">11</span>Effective tax on nominal profit</div>
+          <div class="step-formula amber">= CGT tax ÷ Nominal gain × 100
+= ${fmt(cgtTax)} ÷ ${fmt(nominalGain)} × 100 = ${fmtPct(effectivePct)}</div>
+          <div class="step-note">Denominator is the nominal gain so both methods are comparable on the same base. The effective rate on the real gain alone is ${fmtPct(cgtTax/realGain*100)} — this is what the 30% floor governs.</div></div>`;
+    }
+
+    // ---- Main calculate ----
+    function calculate() {
+      hideError();
+
+      const purchasePrice = parseCurrency(document.getElementById('purchasePrice'));
+      const yearsHeld     = parseFloat(document.getElementById('yearsHeld').value)     || 0;
+      const saleCosts     = parseCurrency(document.getElementById('saleCosts'));
+      const salary        = parseCurrency(document.getElementById('salary'));
+      const inflation     = parseFloat(document.getElementById('inflation').value)     || 0;
+
+      const useGrowth = document.getElementById('toggleMode').checked;
+      let salePrice;
+      if (useGrowth) {
+        const growthRate = parseFloat(document.getElementById('growthRate').value) || 0;
+        salePrice = purchasePrice * Math.pow(1 + growthRate / 100, yearsHeld);
+      } else {
+        salePrice = parseCurrency(document.getElementById('salePrice'));
+      }
+
+      if (purchasePrice <= 0) return showError('Please enter a valid purchase price.');
+      if (salePrice <= 0)     return showError('Please enter a valid sale price or growth rate.');
+      if (yearsHeld < 0)      return showError('Years held cannot be negative.');
+
+      const netProceeds = salePrice - saleCosts;
+      const nominalGain = netProceeds - purchasePrice;
+      if (nominalGain <= 0) return showError('No capital gain to tax — sold at a loss or break-even after costs.');
+
+      const heldOver12 = yearsHeld >= 1;
+
+      // 50% Discount
+      const discountedGain50 = heldOver12 ? nominalGain * 0.5 : nominalGain;
+      const cgtTax50         = incomeTax(salary + discountedGain50) - incomeTax(salary);
+      const effectivePct50   = (cgtTax50 / nominalGain) * 100;
+
+      // CPI indexation (shared by proposed method)
+      const cpiMult         = Math.pow(1 + inflation / 100, yearsHeld);
+      const indexedCostBase = heldOver12 ? purchasePrice * cpiMult : purchasePrice;
+      const indexedGain     = Math.max(0, netProceeds - indexedCostBase);
+
+      // Proposed 30% minimum — uses CPI-indexed real gain
+      const prop             = calcProposed30(salary, indexedGain);
+      const effectivePctProp = (prop.cgtTax / nominalGain) * 100;
+
+      // Inflation context
+      const inflComponent   = indexedCostBase - purchasePrice;
+      const realGain        = indexedGain; // = netProceeds − indexedCostBase
+
+      document.getElementById('results').style.display = 'block';
+
+      // Summary
+      document.getElementById('summaryGrid').innerHTML = `
+        ${summaryBox('Purchase Price', fmt(purchasePrice), '')}
+        ${summaryBox('Sale Price', fmt(salePrice), useGrowth ? '(from growth rate)' : '')}
+        ${summaryBox('Sale Costs', fmt(saleCosts), 'agent, legal, etc.')}
+        ${summaryBox('Net Proceeds', fmt(netProceeds), 'sale price minus costs')}
+        ${summaryBox('Nominal Gain', fmt(nominalGain), fmtPct(nominalGain/purchasePrice*100) + ' above cost base', 'highlight')}
+        ${summaryBox('Inflation Component', fmt(inflComponent), fmt(purchasePrice) + ' × (1+' + inflation + '%)^' + yearsHeld + ' − cost')}
+        ${summaryBox('Real Gain (above inflation)', fmt(realGain), 'nominal gain minus inflation component')}
+        ${summaryBox('Salary', fmt(salary), 'before tax')}
+      `;
+
+      const inputs = { purchasePrice, salePrice, saleCosts, salary, yearsHeld, inflation, heldOver12 };
+
+      const card50 = methodCard('50% CGT Discount', 'blue', false,
+        nominalGain, discountedGain50, cgtTax50, effectivePct50, salary,
+        effectivePct50 <= effectivePctProp,
+        heldOver12 ? 'Held ≥ 12 months — 50% discount applies (current law)'
+                   : 'Held < 12 months — no discount, full gain taxed',
+        steps50HTML(inputs)
+      );
+      const cardProp = methodCard('Inflation Discount with 30% Minimum (post-2027)', 'amber', true,
+        nominalGain, indexedGain, prop.cgtTax, effectivePctProp, salary,
+        effectivePctProp < effectivePct50,
+        prop.floorApplied
+          ? `30% floor applies — marginal rate on real gain (${fmtPct(prop.marginalCgtTax/indexedGain*100)}) is below 30%, top-up of ${fmt(prop.cgtTax - prop.marginalCgtTax)} added`
+          : `30% floor does NOT apply — marginal rate on real gain (${fmtPct(prop.marginalCgtTax/indexedGain*100)}) already ≥ 30%`,
+        stepsProposedHTML(inputs)
+      );
+      document.getElementById('methodCards').innerHTML =
+        effectivePct50 <= effectivePctProp ? card50 + cardProp : cardProp + card50;
+
+      // Comparison bars
+      const maxPct = Math.max(effectivePct50, effectivePctProp, 0.01);
+      document.getElementById('comparisonBar').innerHTML = `
+        <div class="bar-label"><span>50% Discount (current law)</span><span>${fmtPct(effectivePct50)}</span></div>
+        <div class="bar-track"><div class="bar-fill blue"  style="width:${(effectivePct50/maxPct*100).toFixed(1)}%"></div></div>
+        <div class="bar-label"><span>Inflation Discount with 30% Minimum (not yet law)</span><span>${fmtPct(effectivePctProp)}</span></div>
+        <div class="bar-track"><div class="bar-fill amber" style="width:${(effectivePctProp/maxPct*100).toFixed(1)}%"></div></div>
+        <p class="note">
+          Effective tax on profit = CGT tax paid &divide; nominal gain (same denominator for both methods).
+          Includes Medicare levy (2%) and LITO. Excludes tax already payable on salary.<br>
+          The <strong>Inflation Discount with 30% Minimum</strong> strips inflation from the cost base
+          (using your ${inflation}% CPI input as a proxy for ATO index factors), then applies a 30% floor on the real gain —
+          if your marginal rate on the real gain is already ≥ 30%, the floor has no effect.<br>
+          The 50% discount applies to assets held ≥12 months.
+          The proposed 30% minimum is <strong>not yet law</strong> — applies from 1 Jul 2027 if the bill passes.
+        </p>
+      `;
+    }
+
+    function summaryBox(title, val, sub, cls = '') {
+      return `<div class="result-box ${cls}">
+        <div class="box-title">${title}</div>
+        <div class="big-num">${val}</div>
+        ${sub ? `<div class="sub-num">${sub}</div>` : ''}
+      </div>`;
+    }
+
+    function methodCard(title, color, isProposed, nominalGain, taxableGain, cgtTax, effectivePct, salary, isBestCurrent, eligNote, stepsHTML) {
+      const totalIncome  = salary + taxableGain;
+      const taxSalary    = incomeTaxDetailed(salary);
+      const taxTotal     = incomeTaxDetailed(totalIncome);
+      // For proposed method the CGT tax may include a 30% floor top-up on top of marginal brackets,
+      // so "tax on total income" = salary tax + actual CGT tax (not just bracket tax on total).
+      const taxTotalShow = isProposed ? taxSalary.total + cgtTax : taxTotal.total;
+
+      const labelMap = { blue: '50% Discount', amber: 'Inflation Discount 30% Min' };
+
+      return `
+        <div class="method-card${isProposed ? ' proposed' : ''}">
+          <h3>
+            <span class="badge badge-${color}">${labelMap[color]}</span>
+            ${title}
+            ${isBestCurrent ? '<span class="badge badge-best">Best</span>' : ''}
+            ${isProposed    ? '<span class="badge badge-proposed">NOT YET LAW</span>' : ''}
+          </h3>
+          <div class="breakdown-row section-head"><span class="row-label">Gain</span></div>
+          <div class="breakdown-row"><span class="row-label">Nominal gain</span><span class="row-val">${fmt(nominalGain)}</span></div>
+          <div class="breakdown-row"><span class="row-label">Taxable gain (added to income)</span><span class="row-val">${fmt(taxableGain)}</span></div>
+          <div class="breakdown-row section-head" style="margin-top:0.4rem"><span class="row-label">Income &amp; Tax</span></div>
+          <div class="breakdown-row"><span class="row-label">Salary</span><span class="row-val">${fmt(salary)}</span></div>
+          <div class="breakdown-row"><span class="row-label">+ Taxable gain</span><span class="row-val">${fmt(taxableGain)}</span></div>
+          <div class="breakdown-row"><span class="row-label">= Total assessable income</span><span class="row-val">${fmt(totalIncome)}</span></div>
+          <div class="breakdown-row"><span class="row-label">Tax on salary alone</span><span class="row-val">${fmt(taxSalary.total)}</span></div>
+          <div class="breakdown-row"><span class="row-label">Tax on total income</span><span class="row-val">${fmt(taxTotalShow)}</span></div>
+          <div class="breakdown-row"><span class="row-label">CGT tax payable</span><span class="row-val negative">${fmt(cgtTax)}</span></div>
+          <div class="breakdown-row total-row"><span class="row-label">Effective tax on profit</span><span class="row-val">${fmtPct(effectivePct)}</span></div>
+          <p class="note" style="margin-top:0.6rem">${eligNote}</p>
+          <button class="steps-toggle" onclick="toggleSteps(this)">
+            Show step-by-step workings <span class="arrow">▼</span>
+          </button>
+          <div class="steps-body">${stepsHTML}</div>
+        </div>`;
+    }
+  </script>
+</body>
+</html>
